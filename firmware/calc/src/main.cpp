@@ -4,6 +4,7 @@
 #include "keyboard.h"
 #include "display.h"
 #include "input_handler.h"
+#include "number_formatter.h"
 
 #define TEXT_BUF_SIZE (64)
 
@@ -93,40 +94,55 @@ auto_init_mutex(global_mutex);
 
 static screen_data_t screen_data_core0;
 static screen_data_t screen_data_core1;
+static volatile bool screen_update_available = false;
 
 void update_screen(void) {
   mutex_enter_blocking(&global_mutex);
   if (current_state == STATE_NORMAL || current_state == STATE_INPUT) {
     strcpy(screen_data_core0.line0, ih_str(&input_handler_state));
-    sprintf(screen_data_core0.line1, "%g", creal(ca_stack_get(0).cdval));
-    sprintf(screen_data_core0.line2, "%g", creal(ca_stack_get(1).cdval));
-    sprintf(screen_data_core0.line3, "%g", creal(ca_stack_get(2).cdval));
+    nf_format_complex(NF_NUMBER_FORMAT_ALL, ca_stack_get(0), 5, screen_data_core0.line1);
+    nf_format_complex(NF_NUMBER_FORMAT_ALL, ca_stack_get(1), 5, screen_data_core0.line2);
+    nf_format_complex(NF_NUMBER_FORMAT_ALL, ca_stack_get(2), 5, screen_data_core0.line3);
   }
   if (current_state == STATE_RESULT) {
-    sprintf(screen_data_core0.line0, "%g", creal(ca_stack_get(0).cdval));
-    sprintf(screen_data_core0.line1, "%g", creal(ca_stack_get(1).cdval));
-    sprintf(screen_data_core0.line2, "%g", creal(ca_stack_get(2).cdval));
-    sprintf(screen_data_core0.line3, "%g", creal(ca_stack_get(3).cdval));
+    nf_format_complex(NF_NUMBER_FORMAT_ALL, ca_stack_get(0), 5, screen_data_core0.line0);
+    nf_format_complex(NF_NUMBER_FORMAT_ALL, ca_stack_get(1), 5, screen_data_core0.line1);
+    nf_format_complex(NF_NUMBER_FORMAT_ALL, ca_stack_get(2), 5, screen_data_core0.line2);
+    nf_format_complex(NF_NUMBER_FORMAT_ALL, ca_stack_get(3), 5, screen_data_core0.line3);
   }
   screen_data_core0.state = current_state;
   memcpy(screen_data_core0.labels, labels, sizeof(labels));
   screen_data_core0.flags[0] = mod_shiftl; 
-  screen_data_core0.flags[0] = mod_shiftr; 
-  screen_data_core0.flags[0] = mod_alt;
-  screen_data_core0.flags[0] = alpha;
-  screen_data_core0.flags[0] = hyp;
-  screen_data_core0.flags[0] = nav;
+  screen_data_core0.flags[1] = mod_shiftr; 
+  screen_data_core0.flags[2] = mod_alt;
+  screen_data_core0.flags[3] = alpha;
+  screen_data_core0.flags[4] = hyp;
+  screen_data_core0.flags[5] = nav;
+  screen_update_available = true;
   mutex_exit(&global_mutex);
 }
 
 
 void draw_screen(void) {
   mutex_enter_blocking(&global_mutex);
-  memcpy(&screen_data_core1, &screen_data_core0, sizeof(screen_data_t));
+  bool redraw_screen = false;
+  if (screen_update_available) {
+    memcpy(&screen_data_core1, &screen_data_core0, sizeof(screen_data_t));
+    redraw_screen = true;
+    screen_update_available = false;
+  }
   mutex_exit(&global_mutex);
+
+  if (!redraw_screen) return;
 
   dp_clear_buf();
   dp_draw_menu(screen_data_core1.labels);
+
+  if (screen_data_core1.state == STATE_INPUT) {
+    size_t len = strlen(screen_data_core1.line0);
+    screen_data_core1.line0[len++] = '_';
+    screen_data_core1.line0[len] = '\0';
+  }
   
   dp_draw_text(screen_data_core1.line0, 0);
   dp_draw_text(screen_data_core1.line1, 1);
@@ -172,12 +188,17 @@ void key_scn(void) {
 }
 
 void key_bspc(void) {
+  if (current_state == STATE_INPUT) {
+    ih_del(&input_handler_state);
+  }
 }
 
 void key_clr(void) {
   if (current_state == STATE_INPUT) {
     ih_clear(&input_handler_state);
   }
+  mod_shiftl = false;
+  mod_shiftr = false;
 }
 
 void key_enter(void) {
@@ -217,6 +238,7 @@ void ex_op(Operation op) {
       ca_op_pow_yx();
       break;
     case OP_PWR2_X:
+      ca_op_pow2_x();
       break;
     case OP_SQRT_X:
       ca_op_sqrt_x();
@@ -228,10 +250,13 @@ void ex_op(Operation op) {
       ca_op_root_yx();
       break;
     case OP_LOG_X:
+      ca_op_log10_x();
       break;
     case OP_PWR10_X:
+      ca_op_pow10_x();
       break;
     case OP_LOG2_X:
+      ca_op_log2_x();
       break;
     case OP_LN_X:
       ca_op_ln();
@@ -240,7 +265,7 @@ void ex_op(Operation op) {
       ca_op_expe_x();
       break;
     case OP_LOG_YX:
-      ca_op_log_yx;
+      ca_op_log_yx();
       break;
     case OP_RCL_X:
       break;
@@ -316,12 +341,15 @@ void ex_op(Operation op) {
       ca_op_sub_yx();
       break;
     case OP_FACT_X:
+      ca_op_fact_x();
       break;
     case OP_ADD_YX:
       ca_op_add_yx();
       break;
   }
 
+  mod_shiftl = false;
+  mod_shiftr = false;
   current_state = STATE_RESULT;
 }
 
@@ -398,11 +426,10 @@ void kb_handler(uint8_t row, uint8_t col, bool state) {
     case 0x22: // sin
       if (state && !mod_shiftl && !mod_shiftr && !mod_alt && !alpha && !hyp) ex_op(OP_SIN_X);
       if (state && !mod_shiftl && mod_shiftr && !mod_alt && !alpha && !hyp) ex_op(OP_ASIN_X);
-      if (state && mod_shiftl && !mod_shiftr && !mod_alt && !alpha) hyp != hyp;
+      if (state && mod_shiftl && !mod_shiftr && !mod_alt && !alpha) hyp = !hyp;
       if (state && !mod_shiftl && !mod_shiftr && !mod_alt && alpha) key_alpha('V');
       if (state && !mod_shiftl && !mod_shiftr && !mod_alt && !alpha && hyp) ex_op(OP_SINH_X);
       if (state && !mod_shiftl && mod_shiftr && !mod_alt && !alpha && hyp) ex_op(OP_ASINH_X);
-
       break;
     case 0x32: // cos
       if (state && !mod_shiftl && !mod_shiftr && !mod_alt && !alpha && !hyp) ex_op(OP_COS_X);

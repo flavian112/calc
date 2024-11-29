@@ -98,5 +98,10 @@ void dp_draw_flags(bool sl, bool sr, bool alt, bool alph, bool hyp, bool nav) {
     u8g2.drawLine(33 + 3, 6, 33 + 7, 6);
   }
 
+  if (hyp) {
+    u8g2.drawLine(44 + 3, 2, 44 + 3, 8);
+    u8g2.drawLine(44 + 7, 2, 44 + 7, 8);
+    u8g2.drawLine(44 + 3, 5, 44 + 7, 5);
+  }
 
 }

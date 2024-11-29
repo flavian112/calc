@@ -45,8 +45,12 @@ void ca_op_inv_x(void);
 void ca_op_sq_x(void);
 void ca_op_expe_x(void);
 void ca_op_pow_yx(void);
+void ca_op_pow2_x(void);
+void ca_op_pow10_x(void);
 void ca_op_sqrt_x(void);
 void ca_op_root_yx(void);
+void ca_op_log10_x(void);
+void ca_op_log2_x(void);
 void ca_op_ln(void);
 void ca_op_log_yx(void);
 
@@ -69,6 +73,7 @@ void ca_op_tanh_x(void);
 void ca_op_asinh_x(void);
 void ca_op_acosh_x(void);
 void ca_op_atanh_x(void);
+void ca_op_fact_x(void);
 
 #ifdef __cplusplus
 }

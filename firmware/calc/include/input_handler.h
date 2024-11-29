@@ -64,6 +64,7 @@ void ih_neg(ih_state_t *state);
 void ih_add_cmplx(ih_state_t *state);
 char* ih_str(ih_state_t *state);
 number_t ih_get_number(ih_state_t *state);
+void ih_del(ih_state_t *state);
 
 #ifdef __cplusplus
 }

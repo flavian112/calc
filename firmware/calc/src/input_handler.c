@@ -290,3 +290,56 @@ number_t ih_get_number(ih_state_t *state) {
   number.cdval = cmplx_number;
   return number;
 }
+
+void ih_del(ih_state_t *state) {
+  if (state->entry_state == IH_ENTRY_STATE_BASE_REAL) {
+    if (state->base_len_real == 0) {
+      if (state->base_sign_real) {
+        state->base_sign_real = false;
+      }
+    } else if (state->base_decimal_real && state->base_len_real == state->base_decimal_pos_real + 1) {
+      state->base_decimal_real = false;
+    } else {
+      state->buf_base_real[--state->base_len_real] = '\0';
+    }
+    return;
+  }
+  if (state->entry_state == IH_ENTRY_STATE_EXP_REAL) {
+    if (state->exp_len_real == 0) {
+      if (state->exp_sign_real) {
+        state->exp_sign_real = false;
+      } else {
+        state->exp_real = false;
+        state->entry_state = IH_ENTRY_STATE_BASE_REAL;
+      }
+    } else {
+      state->buf_exp_real[--state->exp_len_real] = '\0';
+    }
+    return;
+  }
+  if (state->entry_state == IH_ENTRY_STATE_BASE_CMPLX) {
+    if (state->base_len_real == 0) {
+      if (state->base_sign_real) {
+        state->base_sign_real = false;
+      }
+    } else if (state->base_decimal_real && state->base_len_real == state->base_decimal_pos_real + 1) {
+      state->base_decimal_real = false;
+    } else {
+      state->buf_base_real[--state->base_len_real] = '\0';
+    }
+    return;
+  }
+  if (state->entry_state == IH_ENTRY_STATE_EXP_REAL) {
+    if (state->exp_len_real == 0) {
+      if (state->exp_sign_real) {
+        state->exp_sign_real = false;
+      } else {
+        state->exp_real = false;
+        state->entry_state = IH_ENTRY_STATE_BASE_REAL;
+      }
+    } else {
+      state->buf_exp_real[--state->exp_len_real] = '\0';
+    }
+    return;
+  }
+}
