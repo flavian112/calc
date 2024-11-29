@@ -3,16 +3,18 @@
 #include "calc.h"
 #include "keyboard.h"
 #include "display.h"
+#include "input_handler.h"
 
+#define TEXT_BUF_SIZE (64)
 
-#define BUF_SIZE (64)
+static char text_buf[TEXT_BUF_SIZE] = {0};
 
-static char input_buf[BUF_SIZE] = {0};
-static char tmp_buf[BUF_SIZE] = {0};
+static ih_state_t input_handler_state;
 
 enum State {
   STATE_NORMAL,
-  STATE_INPUT_NUMBER
+  STATE_INPUT,
+  STATE_RESULT,
 };
 
 enum NAV_DIR {
@@ -77,50 +79,115 @@ static bool nav = false;
 
 static State current_state = STATE_NORMAL;
 
-void draw_screen(void) {
-  dp_clear_buf();
-  dp_draw_menu(labels);
-  dp_draw_flags(mod_shiftl, mod_shiftr, mod_alt, alpha, hyp, nav);
-  if (current_state == STATE_NORMAL) {
-    sprintf(tmp_buf, "%g", creal(stack_get(0).cdval));
-    dp_draw_text(tmp_buf, 0);
-    sprintf(tmp_buf, "%g", creal(stack_get(1).cdval));
-    dp_draw_text(tmp_buf, 1);
-    sprintf(tmp_buf, "%g", creal(stack_get(2).cdval));
-    dp_draw_text(tmp_buf, 2);
-    sprintf(tmp_buf, "%g", creal(stack_get(3).cdval));
-    dp_draw_text(tmp_buf, 3);
-  } else if (current_state == STATE_INPUT_NUMBER) {
-    dp_draw_text(input_buf, 0);
-    sprintf(tmp_buf, "%g", creal(stack_get(1).cdval));
-    dp_draw_text(tmp_buf, 1);
-    sprintf(tmp_buf, "%g", creal(stack_get(2).cdval));
-    dp_draw_text(tmp_buf, 2);
-    sprintf(tmp_buf, "%g", creal(stack_get(3).cdval));
-    dp_draw_text(tmp_buf, 3);
+struct screen_data {
+  char labels[5][6];
+  State state;
+  char line0[TEXT_BUF_SIZE];
+  char line1[TEXT_BUF_SIZE];
+  char line2[TEXT_BUF_SIZE];
+  char line3[TEXT_BUF_SIZE];
+  bool flags[6];
+} typedef screen_data_t;
+
+auto_init_mutex(global_mutex);
+
+static screen_data_t screen_data_core0;
+static screen_data_t screen_data_core1;
+
+void update_screen(void) {
+  mutex_enter_blocking(&global_mutex);
+  if (current_state == STATE_NORMAL || current_state == STATE_INPUT) {
+    strcpy(screen_data_core0.line0, ih_str(&input_handler_state));
+    sprintf(screen_data_core0.line1, "%g", creal(ca_stack_get(0).cdval));
+    sprintf(screen_data_core0.line2, "%g", creal(ca_stack_get(1).cdval));
+    sprintf(screen_data_core0.line3, "%g", creal(ca_stack_get(2).cdval));
   }
+  if (current_state == STATE_RESULT) {
+    sprintf(screen_data_core0.line0, "%g", creal(ca_stack_get(0).cdval));
+    sprintf(screen_data_core0.line1, "%g", creal(ca_stack_get(1).cdval));
+    sprintf(screen_data_core0.line2, "%g", creal(ca_stack_get(2).cdval));
+    sprintf(screen_data_core0.line3, "%g", creal(ca_stack_get(3).cdval));
+  }
+  screen_data_core0.state = current_state;
+  memcpy(screen_data_core0.labels, labels, sizeof(labels));
+  screen_data_core0.flags[0] = mod_shiftl; 
+  screen_data_core0.flags[0] = mod_shiftr; 
+  screen_data_core0.flags[0] = mod_alt;
+  screen_data_core0.flags[0] = alpha;
+  screen_data_core0.flags[0] = hyp;
+  screen_data_core0.flags[0] = nav;
+  mutex_exit(&global_mutex);
+}
+
+
+void draw_screen(void) {
+  mutex_enter_blocking(&global_mutex);
+  memcpy(&screen_data_core1, &screen_data_core0, sizeof(screen_data_t));
+  mutex_exit(&global_mutex);
+
+  dp_clear_buf();
+  dp_draw_menu(screen_data_core1.labels);
+  
+  dp_draw_text(screen_data_core1.line0, 0);
+  dp_draw_text(screen_data_core1.line1, 1);
+  dp_draw_text(screen_data_core1.line2, 2);
+  dp_draw_text(screen_data_core1.line3, 3);
+  
+  dp_draw_flags(screen_data_core1.flags[0], 
+                screen_data_core1.flags[1], 
+                screen_data_core1.flags[2], 
+                screen_data_core1.flags[3], 
+                screen_data_core1.flags[4], 
+                screen_data_core1.flags[5]);
   dp_send_buf();
 }
 
 void key_digit(uint8_t digit) {
+  if (current_state == STATE_NORMAL || current_state == STATE_RESULT) {
+    ih_clear(&input_handler_state);
+    current_state = STATE_INPUT;
+  }
+  if (current_state == STATE_INPUT) {
+    ih_add_digit(&input_handler_state, digit);
+  }
 }
 
 void key_alpha(char character) {
 }
 
 void key_dot(void) {
+  if (current_state == STATE_NORMAL || current_state == STATE_RESULT) {
+    ih_clear(&input_handler_state);
+    current_state = STATE_INPUT;
+  }
+  if (current_state == STATE_INPUT) {
+    ih_add_decimal(&input_handler_state);
+  }
 }
 
 void key_scn(void) {
+  if (current_state == STATE_INPUT) {
+    ih_add_exp(&input_handler_state);
+  }
 }
 
 void key_bspc(void) {
 }
 
 void key_clr(void) {
+  if (current_state == STATE_INPUT) {
+    ih_clear(&input_handler_state);
+  }
 }
 
 void key_enter(void) {
+  if (current_state == STATE_INPUT || current_state == STATE_NORMAL) {
+    ca_stack_push_x(ih_get_number(&input_handler_state));
+  }
+  if (current_state == STATE_RESULT) {
+    ca_stack_push_x(ca_stack_get(0));
+  }
+  current_state = STATE_NORMAL;
 }
 
 void key_on(void) {
@@ -139,6 +206,131 @@ void dm_op(uint8_t index) {
 }
 
 void ex_op(Operation op) {
+  if (current_state == STATE_NORMAL || current_state == STATE_INPUT) {
+    ca_stack_push_x(ih_get_number(&input_handler_state));
+  }
+  switch (op) {
+    case OP_INV_X:
+      ca_op_inv_x();
+      break;
+    case OP_PWR_YX:
+      ca_op_pow_yx();
+      break;
+    case OP_PWR2_X:
+      break;
+    case OP_SQRT_X:
+      ca_op_sqrt_x();
+      break;
+    case OP_SQ_X:
+      ca_op_sq_x();
+      break;
+    case OP_ROOT_YX:
+      ca_op_root_yx();
+      break;
+    case OP_LOG_X:
+      break;
+    case OP_PWR10_X:
+      break;
+    case OP_LOG2_X:
+      break;
+    case OP_LN_X:
+      ca_op_ln();
+      break;
+    case OP_EXP_X:
+      ca_op_expe_x();
+      break;
+    case OP_LOG_YX:
+      ca_op_log_yx;
+      break;
+    case OP_RCL_X:
+      break;
+    case OP_STO_X:
+      break;
+    case OP_ROLD:
+      ca_stack_roll_down();
+      break;
+    case OP_ROLU:
+      ca_stack_roll_up();
+      break;
+    case OP_LST_X:
+      break;
+    case OP_SIN_X:
+      ca_op_sin_x();
+      break;
+    case OP_ASIN_X:
+      ca_op_asin_x();
+      break;
+    case OP_SINH_X:
+      ca_op_sinh_x();
+      break;
+    case OP_ASINH_X:
+      ca_op_asinh_x();
+      break;
+    case OP_COS_X:
+      ca_op_cos_x();
+      break;
+    case OP_ACOS_X:
+      ca_op_acos_x();
+      break;
+    case OP_COSH_X:
+      ca_op_cosh_x();
+      break;
+    case OP_ACOSH_X:
+      ca_op_acosh_x();
+      break;
+    case OP_TAN_X:
+      ca_op_tan_x();
+      break;
+    case OP_ATAN_X:
+      ca_op_atan_x();
+      break;
+    case OP_TANH_X:
+      ca_op_tanh_x();
+      break;
+    case OP_ATANH_X:
+      ca_op_atanh_x();
+      break;
+    case OP_SWP_XY:
+      ca_stack_swap_yx();
+      break;
+    case OP_STAT_PUSH:
+      break;
+    case OP_STAT_POP:
+      break;
+    case OP_NEG_X:
+      ca_op_neg_x();
+      break;
+    case OP_ABS_X:
+      ca_op_abs_x();
+      break;
+    case OP_ARG_X:
+      ca_op_arg_x();
+      break;
+    case OP_DIV_YX:
+      ca_op_div_yx();
+      break;
+    case OP_MUL_YX:
+      ca_op_mul_yx();
+      break;
+    case OP_SUB_YX:
+      ca_op_sub_yx();
+      break;
+    case OP_FACT_X:
+      break;
+    case OP_ADD_YX:
+      ca_op_add_yx();
+      break;
+  }
+
+  current_state = STATE_RESULT;
+}
+
+void key_neg(void) {
+  if (current_state == STATE_INPUT) {
+    ih_neg(&input_handler_state);
+  } else {
+    ex_op(OP_NEG_X);
+  }
 }
 
 void kb_handler(uint8_t row, uint8_t col, bool state) {
@@ -229,7 +421,7 @@ void kb_handler(uint8_t row, uint8_t col, bool state) {
       break;
 
     case 0x03: // enter
-      key_enter();
+      if (state) key_enter();
       break;
     case 0x13: // swap
       if (state && !mod_shiftl && !mod_shiftr && !mod_alt && !alpha) ex_op(OP_SWP_XY);
@@ -238,7 +430,7 @@ void kb_handler(uint8_t row, uint8_t col, bool state) {
       if (state && !mod_shiftl && !mod_shiftr && !mod_alt && alpha) key_alpha('Q');
       break;
     case 0x23: // negate
-      if (state && !mod_shiftl && !mod_shiftr && !mod_alt && !alpha) ex_op(OP_NEG_X);
+      if (state && !mod_shiftl && !mod_shiftr && !mod_alt && !alpha) key_neg();
       if (state && !mod_shiftl && mod_shiftr && !mod_alt && !alpha); // MODE
       if (state && mod_shiftl && !mod_shiftr && !mod_alt && !alpha); // SYM
       if (state && !mod_shiftl && !mod_shiftr && !mod_alt && alpha) key_alpha('R');
@@ -350,14 +542,14 @@ void kb_handler(uint8_t row, uint8_t col, bool state) {
     case 0x27: // .
       if (state && !mod_shiftl && !mod_shiftr && !mod_alt && !alpha) key_dot();
       if (state && !mod_shiftl && mod_shiftr && !mod_alt && !alpha); // SHOW
-      if (state && mod_shiftl && !mod_shiftr && !mod_alt && !alpha); ex_op(OP_FACT_X);
+      if (state && mod_shiftl && !mod_shiftr && !mod_alt && !alpha) ex_op(OP_FACT_X);
       if (state && !mod_shiftl && !mod_shiftr && !mod_alt && alpha) key_alpha('B');
       break;
     case 0x37: // R/S
-      if (state && !mod_shiftl && !mod_shiftr && !mod_alt && !alpha) key_dot();
-      if (state && !mod_shiftl && mod_shiftr && !mod_alt && !alpha); // SHOW
-      if (state && mod_shiftl && !mod_shiftr && !mod_alt && !alpha); ex_op(OP_FACT_X);
-      if (state && !mod_shiftl && !mod_shiftr && !mod_alt && alpha) key_alpha('B');
+      if (state && !mod_shiftl && !mod_shiftr && !mod_alt && !alpha); // R/S
+      if (state && !mod_shiftl && mod_shiftr && !mod_alt && !alpha); // PRGM
+      if (state && mod_shiftl && !mod_shiftr && !mod_alt && !alpha); // FCN
+      if (state && !mod_shiftl && !mod_shiftr && !mod_alt && alpha) key_alpha('C');
       break;
     case 0x47: // add
       if (state && !mod_shiftl && !mod_shiftr && !mod_alt && !alpha && !nav) ex_op(OP_ADD_YX);
@@ -365,17 +557,27 @@ void kb_handler(uint8_t row, uint8_t col, bool state) {
       if (state && !mod_alt && nav) key_nav(NAV_L);
       break;
   }
-  draw_screen();
+  update_screen();
 }
 
 void setup() {
   Serial1.begin(115200);
-  dp_init();
   kb_init();
 
-  draw_screen();
+  input_handler_state = ih_init();
+
+  update_screen();
 }
 
 void loop() {
   kb_scan();
 }
+
+void setup1() {
+  dp_init();
+}
+
+void loop1() {
+  draw_screen();
+}
+

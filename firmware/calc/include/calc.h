@@ -7,70 +7,68 @@ extern "C" {
 
 #include <stdint.h>
 #include <complex.h>
+#include "common.h"
 
 #define STACK_SIZE 8
 #define REG_SIZE 24
 
-union number {
-    uint8_t data[16];
-    double _Complex cdval;
-} typedef number_t;
 
-number_t stack_pop(void);
-void stack_push(number_t number);
-number_t stack_get(size_t index);
-void stack_set(size_t index, number_t number);
-void stack_roll_down(void);
-void stack_roll_up(void);
-void stack_swap(void);
+
+number_t ca_stack_pop_x(void);
+void ca_stack_push_x(number_t number);
+number_t ca_stack_get(size_t index);
+void ca_stack_set(size_t index, number_t number);
+void ca_stack_roll_down(void);
+void ca_stack_roll_up(void);
+void ca_stack_swap_yx(void);
 
 /*
  registers
  */
 
-void reg_sto(size_t index);
-void reg_rcl(size_t index);
+void ca_reg_sto_x(size_t index);
+void ca_reg_rcl_x(size_t index);
 
 /*
  operations
 */
 
 // basic arithmetic
-void op_add(void);
-void op_sub(void);
-void op_neg(void);
-void op_mul(void);
-void op_div(void);
-void op_inv(void);
+void ca_op_add_yx(void);
+void ca_op_sub_yx(void);
+void ca_op_neg_x(void);
+void ca_op_mul_yx(void);
+void ca_op_div_yx(void);
+void ca_op_inv_x(void);
 
 
-void op_sq(void);
-void op_exp(void);
-void op_pow(void);
-void op_sqrt(void);
-void op_root(void);
-void op_ln(void);
-void op_log(void);
+void ca_op_sq_x(void);
+void ca_op_expe_x(void);
+void ca_op_pow_yx(void);
+void ca_op_sqrt_x(void);
+void ca_op_root_yx(void);
+void ca_op_ln(void);
+void ca_op_log_yx(void);
 
 // other
-void op_abs(void);
-void op_arg(void);
-void op_real(void);
-void op_imag(void);
+void ca_op_abs_x(void);
+void ca_op_arg_x(void);
+void ca_op_real_x(void);
+void ca_op_imag_x(void);
 
 // trigonometry
-void op_sin(void);
-void op_cos(void);
-void op_tan(void);
-void op_asin(void);
-void op_acos(void);
-void op_atan(void);
-void op_sinh(void);
-void op_cosh(void);
-void op_tanh(void);
-void op_asinh(void);
-void op_acosh(void);
-void op_atanh(void);
+void ca_op_sin_x(void);
+void ca_op_cos_x(void);
+void ca_op_tan_x(void);
+void ca_op_asin_x(void);
+void ca_op_acos_x(void);
+void ca_op_atan_x(void);
+void ca_op_sinh_x(void);
+void ca_op_cosh_x(void);
+void ca_op_tanh_x(void);
+void ca_op_asinh_x(void);
+void ca_op_acosh_x(void);
+void ca_op_atanh_x(void);
 
 #ifdef __cplusplus
 }
