@@ -5,31 +5,26 @@
 #include <string.h>
 #include <complex.h>
 #include <math.h>
+#include "number_formatter.h"
 
-bool ih_valid_digit(cl_base_t base, uint8_t digit) {
-  switch (base) {
-    case CL_BASE_BIN: return digit < 2;
-    case CL_BASE_OCT: return digit < 8;
-    case CL_BASE_DEC: return digit < 10;
-    case CL_BASE_HEX: return digit < 16;
-    default: return false;
-  }
+bool ih_valid_digit(fc_base_t base, uint8_t digit) {
+  return digit < base;
 }
 
 ih_state_t ih_init(void) {
   ih_state_t state;
   memset(&state, 0, sizeof(ih_state_t));
-  state.base = CL_BASE_DEC;
+  state.base = FC_BASE_DEC;
   state.entry_state = IH_ENTRY_STATE_BASE_REAL;
   return state;
 }
 
-void ih_set_base(ih_state_t *state, cl_base_t base) {
+void ih_set_base(ih_state_t *state, fc_base_t base) {
   state->base = base;
 }
 
 void ih_clear(ih_state_t *state) {
-  cl_base_t base = state->base;
+  fc_base_t base = state->base;
   memset(state, 0, sizeof(ih_state_t));
   state->base = base;
   state->entry_state = IH_ENTRY_STATE_BASE_REAL;
@@ -204,7 +199,7 @@ double ih_mantissa(uint8_t *buf, uint8_t len, bool decimal, uint8_t decimal_pos,
   return mantissa;
 }
 
-int ih_exp(uint8_t *buf, uint8_t len, bool exp_sign, cl_base_t base) {
+int ih_exp(uint8_t *buf, uint8_t len, bool exp_sign, fc_base_t base) {
   int exponent = 0;
   int i;
 
@@ -217,22 +212,13 @@ int ih_exp(uint8_t *buf, uint8_t len, bool exp_sign, cl_base_t base) {
   return exponent;
 }
 
-number_t ih_get_number(ih_state_t *state) {
+fc_scalar_t ih_get_number(ih_state_t *state) {
   double real_part = 0.0;
   double imag_part = 0.0;
 
-  uint8_t base;
-  number_t number;
+  fc_scalar_t number;
   double complex cmplx_number = 0;
-  number.cdval = cmplx_number;
-
-  switch (state->base) {
-    case CL_BASE_BIN: base = 2; break;
-    case CL_BASE_OCT: base = 8; break;
-    case CL_BASE_DEC: base = 10; break;
-    case CL_BASE_HEX: base = 16; break;
-    default: return number;
-  }
+  number.val_c = cmplx_number;
 
   if (state->base_len_real > 0) {
     double mantissa_real = ih_mantissa(
@@ -240,7 +226,7 @@ number_t ih_get_number(ih_state_t *state) {
       state->base_len_real,
       state->base_decimal_real,
       state->base_decimal_pos_real,
-      base
+      state->base
     );
 
     int exponent_real = 0;
@@ -249,11 +235,11 @@ number_t ih_get_number(ih_state_t *state) {
         state->buf_exp_real,
         state->exp_len_real,
         state->exp_sign_real,
-        base
+        state->base
       );
     }
 
-    double value_real = mantissa_real * pow(base, exponent_real);
+    double value_real = mantissa_real * pow(state->base, exponent_real);
     if (state->base_sign_real) {
       value_real = -value_real;
     }
@@ -266,7 +252,7 @@ number_t ih_get_number(ih_state_t *state) {
         state->base_len_cmplx,
         state->base_decimal_cmplx,
         state->base_decimal_pos_cmplx,
-        base
+        state->base
       );
 
     int exponent_imag = 0;
@@ -275,11 +261,11 @@ number_t ih_get_number(ih_state_t *state) {
         state->buf_exp_cmplx,
         state->exp_len_cmplx,
         state->exp_sign_cmplx,
-        base
+        state->base
       );
     }
 
-    double value_imag = mantissa_imag * pow(base, exponent_imag);
+    double value_imag = mantissa_imag * pow(state->base, exponent_imag);
     if (state->base_sign_cmplx) {
       value_imag = -value_imag;
     }
@@ -287,7 +273,7 @@ number_t ih_get_number(ih_state_t *state) {
   }
 
   cmplx_number = real_part + imag_part * I;
-  number.cdval = cmplx_number;
+  number.val_c = cmplx_number;
   return number;
 }
 
@@ -343,3 +329,9 @@ void ih_del(ih_state_t *state) {
     return;
   }
 }
+
+void ih_set(ih_state_t *state, fc_scalar_t number, nf_number_format_t format, int prec) {
+  char buf[100];
+  nf_format_complex(format, number, prec, buf);
+  char* cmplx_i = strchr(buf, 'i'); 
+} 

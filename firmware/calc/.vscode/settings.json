@@ -23,6 +23,7 @@
         "tuple": "c",
         "type_traits": "c",
         "utility": "c",
-        "complex": "c"
+        "complex": "c",
+        "variant": "cpp"
     }
 }

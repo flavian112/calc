@@ -1,12 +1,12 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 
+#include <stdint.h>
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdint.h>
-#include <stdbool.h>
 
 void kb_init(void);
 void kb_scan(void);
