@@ -7,10 +7,10 @@
 extern "C" {
 #endif
 
-enum fc_kb_action_t {
+typedef enum {
   FC_KB_ACTION_PRESSED,
   FC_KB_ACTION_RELEASED
-} typedef fc_kb_action_t;
+} fc_kb_action_t;
 
 void fc_kb_init(void);
 void fc_kb_scan(void);

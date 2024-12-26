@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 void fc_dp_init(void);
-void fc_dp_update(disp_data_t *disp_data);
+void fc_dp_update(fc_disp_data_t *disp_data);
 void fc_dp_draw(void);
 
 

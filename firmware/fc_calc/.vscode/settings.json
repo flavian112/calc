@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "regex": "c",
+        "fc_number_formatter.h": "c"
+    }
+}
