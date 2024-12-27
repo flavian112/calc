@@ -40,3 +40,5 @@ void fc_kb_scan(void) {
     }
   }
 }
+
+void fc_kb_handler(uint8_t keycode, fc_kb_action_t action) { }

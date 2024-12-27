@@ -1,6 +1,7 @@
 #include "fc_input.h"
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 #include "fc_format.h"
 
 static void _char_remove(char *str, size_t index) {
@@ -15,6 +16,16 @@ static void _char_insert(char *str, char c, size_t index) {
   if (index > len) return;
   memmove(&str[index + 1], &str[index], len - index + 1);
   str[index] = c;
+}
+
+static unsigned _digit_count(char *str) {
+  size_t len = strnlen(str, FC_INPUT_BUF_SIZE);
+  unsigned count = 0;
+  for (int i = 0; i < len; ++i) {
+    if (isdigit(str[i])) ++count;
+    if ('A' <= str[i] && str[i] <= 'F') ++count;
+  }
+  return count;
 }
 
 static bool _has_exp(char *buf) {
@@ -40,6 +51,7 @@ static void _add_decimal(char *buf) {
   if (_has_exp(buf)) return;
   size_t len = strnlen(buf, FC_INPUT_BUF_SIZE);
   if (len + 1 >= FC_INPUT_BUF_SIZE) return;
+  if (_digit_count(buf) == 0) buf[len++] = '0';
   buf[len] = '.';
   buf[len + 1] = '\0';
 }

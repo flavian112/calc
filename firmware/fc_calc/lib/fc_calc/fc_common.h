@@ -22,6 +22,7 @@ typedef struct {
   bool hyp;
   bool alpha;
   bool nav;
+  bool mod_lock;
 } fc_flags_t;
 
 typedef enum {

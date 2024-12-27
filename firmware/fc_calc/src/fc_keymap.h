@@ -24,23 +24,23 @@ typedef enum {
   FC_KEY_NAV_EXIT,
 } fc_key_nav_t;
 
-void key_func(void *arg);
-void key_op(void *arg);
-void key_enter(void *arg);
-void key_neg(void *arg);
-void key_exp(void *arg);
-void key_del(void *arg);
-void key_mod(void *arg);
-void key_digit(void *arg);
-void key_exit(void *arg);
-void key_decimal(void *arg);
-void key_alpha(void *arg);
-void key_charset(void *arg);
-void key_nav(void *arg);
-void key_clear(void *arg);
-void key_bksp(void *arg);
+void key_op(fc_kb_action_t kb_action, void *arg);
+void key_enter(fc_kb_action_t kb_action, void *arg);
+void key_digit(fc_kb_action_t kb_action, void *arg);
+void key_neg(fc_kb_action_t kb_action, void *arg);
+void key_decimal(fc_kb_action_t kb_action, void *arg);
+void key_exp(fc_kb_action_t kb_action, void *arg);
+void key_backspace(fc_kb_action_t kb_action, void *arg);
+void key_clear(fc_kb_action_t kb_action, void *arg);
+void key_del(fc_kb_action_t kb_action, void *arg);
+void key_alpha(fc_kb_action_t kb_action, void *arg);
+void key_charset(fc_kb_action_t kb_action, void *arg);
+void key_func(fc_kb_action_t kb_action, void *arg);
+void key_mod(fc_kb_action_t kb_action, void *arg);
+void key_exit(fc_kb_action_t kb_action, void *arg);
+void key_nav(fc_kb_action_t kb_action, void *arg);
 
-typedef void (*fc_key_func_t)(void *arg);
+typedef void (*fc_key_func_t)(fc_kb_action_t kb_action, void *arg);
 
 typedef struct {
   fc_key_func_t on_press;
@@ -189,7 +189,7 @@ static fc_key_action_t keymap[8][5][6] = { // default, shift_r, shift_l, alpha, 
       { NULL, NULL },
       { NULL, NULL }
     }, { // BKSP, CLR, DEL
-      { key_bksp, NULL },
+      { key_backspace, NULL },
       { key_clear, NULL },
       { key_del, NULL },
       { NULL, NULL },
