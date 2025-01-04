@@ -7,10 +7,15 @@
 #include "fc_keymap.h"
 #include "fc_log.h"
 #include "fc_input.h"
+#include <stdio.h>
 
-fc_disp_data_t disp_data;
-fc_calculator_state_t calculator_state;
-fc_input_state_t input_state;
+static fc_disp_data_t disp_data;
+static fc_calculator_state_t calculator_state;
+static fc_input_state_t input_state;
+
+typedef void (*menu_action_t)(void *arg);
+static menu_action_t menu_actions[5] = { 0 };
+static void *menu_action_args[5] = { 0 };
 
 
 void update_display(void) {
@@ -27,70 +32,33 @@ void update_display(void) {
   fc_dp_update(&disp_data);
 }
 
-void mod_toggle_lock() {
-  disp_data.flags.mod_lock = !disp_data.flags.mod_lock;
-}
 
 void mod_clear() {
-  if (!disp_data.flags.mod_lock) {
-    disp_data.flags.mod_shift_r = false;
-    disp_data.flags.mod_shift_l = false;
-    disp_data.flags.mod_alt = false;  
-  }
+  disp_data.flags.mod_shift_r = false;
+  disp_data.flags.mod_shift_l = false;
+  disp_data.flags.mod_alt = false;  
   disp_data.flags.hyp = false;
 }
 
 void mod_toggle(fc_kb_action_t action, fc_key_mod_t mod) {
-  if (action == FC_KB_ACTION_PRESSED) {
-    if (disp_data.flags.mod_lock) {
-      if (mod == FC_KEY_MOD_HYP) {
-        disp_data.flags.hyp = !disp_data.flags.hyp;
-        return;
-      }
-      disp_data.flags.mod_shift_r = false;
-      disp_data.flags.mod_shift_l = false;
-      disp_data.flags.mod_alt = false;
-      switch (mod) {
-        case FC_KEY_MOD_SHIFT_R: disp_data.flags.mod_shift_r = true; break;
-        case FC_KEY_MOD_SHIFT_L: disp_data.flags.mod_shift_l = true; break;
-        case FC_KEY_MOD_ALT: disp_data.flags.mod_alt = true; break;
-        default: break;
-      }
-    } else {
-      switch (mod) {
-        case FC_KEY_MOD_SHIFT_R: 
-          disp_data.flags.mod_shift_r = !disp_data.flags.mod_shift_r;
-          disp_data.flags.mod_shift_l = false;
-          disp_data.flags.mod_alt = false; 
-          break;
-        case FC_KEY_MOD_SHIFT_L: 
-          disp_data.flags.mod_shift_l = !disp_data.flags.mod_shift_l;
-          disp_data.flags.mod_shift_r = false;
-          disp_data.flags.mod_alt = false;
-          break;
-        case FC_KEY_MOD_ALT: 
-          disp_data.flags.mod_alt = !disp_data.flags.mod_alt;
-          disp_data.flags.mod_shift_r = false;
-          disp_data.flags.mod_shift_l = false;
-          break;
-        case FC_KEY_MOD_HYP: 
-          bool flag = !disp_data.flags.hyp;
-          mod_clear();
-          disp_data.flags.hyp = flag;
-          break;
-      }
-    }
-  } else {
-    if (!disp_data.flags.mod_lock) return;
-    disp_data.flags.mod_shift_r = false;
-    disp_data.flags.mod_shift_l = false;
-    disp_data.flags.mod_alt = false;
+  if (action != FC_KB_ACTION_PRESSED) return;
+  bool *mod_ptr;
+  switch (mod) {
+    case FC_KEY_MOD_SHIFT_R: mod_ptr = &disp_data.flags.mod_shift_r; break;
+    case FC_KEY_MOD_SHIFT_L: mod_ptr = &disp_data.flags.mod_shift_l; break;
+    case FC_KEY_MOD_ALT: mod_ptr = &disp_data.flags.mod_alt; break;
+    case FC_KEY_MOD_HYP:  mod_ptr = &disp_data.flags.hyp; break;
   }
+  bool flag = !*mod_ptr;
+  mod_clear();
+  *mod_ptr = flag;
 }
 
 void fc_kb_handler(uint8_t keycode, fc_kb_action_t action) {
   uint8_t row = keycode & 0x0F;
   uint8_t col = (keycode >> 4) & 0x0F;
+
+  fc_log("[KEYBOARD] (%1u, %1u) %s\n", row, col, action == FC_KB_ACTION_PRESSED ? "pressed" : "released");
 
   fc_key_action_t key_action = keymap[row][col][0];
   if (disp_data.flags.mod_alt) key_action = keymap[row][col][5];
@@ -106,13 +74,9 @@ void fc_kb_handler(uint8_t keycode, fc_kb_action_t action) {
 
 void key_op(fc_kb_action_t kb_action, void *arg) {
   if (kb_action != FC_KB_ACTION_PRESSED) return;
-  if (disp_data.disp_state == FC_DISP_STATE_RESULT) {
-  } else if (disp_data.disp_state == FC_DISP_STATE_NORMAL) {
+  if (disp_data.disp_state != FC_DISP_STATE_RESULT) {
     fc_scalar_t x = fc_input_get(&input_state);
-    fc_calculator_perform_operation(&calculator_state, FC_CALCULATOR_OPERATION_PUSH, FC_SCALAR_TYPE_C, &x);
-  } else if (disp_data.disp_state == FC_DISP_STATE_ENTRY) {
-    fc_scalar_t x = fc_input_get(&input_state);
-    fc_calculator_perform_operation(&calculator_state, FC_CALCULATOR_OPERATION_PUSH, FC_SCALAR_TYPE_C, &x);
+    fc_calculator_perform_operation(&calculator_state, FC_CALCULATOR_OPERATION_PUSH, &x);
   }
   if (disp_data.flags.hyp) {
     switch ((fc_calculator_operation_t)arg) {
@@ -125,7 +89,7 @@ void key_op(fc_kb_action_t kb_action, void *arg) {
       default: break;
     }
   }
-  fc_calculator_perform_operation(&calculator_state, (fc_calculator_operation_t)arg, FC_SCALAR_TYPE_C);
+  fc_calculator_perform_operation(&calculator_state, (fc_calculator_operation_t)arg);
   fc_scalar_t x = fc_calculator_stack_get(&calculator_state, 0);
   fc_input_set(&input_state, x);
   disp_data.disp_state = FC_DISP_STATE_RESULT;
@@ -136,9 +100,12 @@ void key_enter(fc_kb_action_t kb_action, void *arg) {
   if (kb_action != FC_KB_ACTION_PRESSED) return;
   if (disp_data.disp_state == FC_DISP_STATE_ENTRY) {
     fc_input_set(&input_state, fc_input_get(&input_state));
+  } else if (disp_data.disp_state == FC_DISP_STATE_RESULT) {
+    disp_data.disp_state = FC_DISP_STATE_NORMAL;
+    return;
   }
   fc_scalar_t x = fc_input_get(&input_state);
-  fc_calculator_perform_operation(&calculator_state, FC_CALCULATOR_OPERATION_PUSH, FC_SCALAR_TYPE_C, &x);
+  fc_calculator_perform_operation(&calculator_state, FC_CALCULATOR_OPERATION_PUSH, &x);
   disp_data.disp_state = FC_DISP_STATE_NORMAL;
 }
 
@@ -196,29 +163,71 @@ void key_alpha(fc_kb_action_t kb_action, void *arg) {}
 
 void key_charset(fc_kb_action_t kb_action, void *arg) {}
 
-void key_func(fc_kb_action_t kb_action, void *arg) {}
+void key_func(fc_kb_action_t kb_action, void *arg) { }
 
 void key_mod(fc_kb_action_t kb_action, void *arg) {
-  if (kb_action == FC_KB_ACTION_PRESSED && arg == FC_KEY_MOD_ALT && disp_data.flags.mod_shift_r) {
-    mod_toggle_lock();
-    return;
-  }
   mod_toggle(kb_action, (fc_key_mod_t)arg);
 }
 
 void key_exit(fc_kb_action_t kb_action, void *arg) {}
 
-void key_nav(fc_kb_action_t kb_action, void *arg) {}
+void key_nav(fc_kb_action_t kb_action, void *arg) {
+  if (kb_action != FC_KB_ACTION_PRESSED) return;
+  switch ((fc_key_nav_t)arg) {
+    case FC_KEY_NAV_UP:
+      break;
+    case FC_KEY_NAV_DOWN:
+      break;
+    case FC_KEY_NAV_LEFT:
+      break;
+    case FC_KEY_NAV_RIGHT:
+      break;
+    case FC_KEY_NAV_ENTER:
+      break;
+    case FC_KEY_NAV_EXIT:
+      memset(disp_data.menu_labels, 0, sizeof(disp_data.menu_labels));
+      disp_data.disp_state = FC_DISP_STATE_NORMAL;
+      disp_data.flags.nav = false;
+      break;
+    case FC_KEY_NAV_1:
+    case FC_KEY_NAV_2:
+    case FC_KEY_NAV_3:
+    case FC_KEY_NAV_4:
+    case FC_KEY_NAV_5:
+      if (menu_actions[(fc_key_nav_t)arg - FC_KEY_NAV_1]) {
+        menu_actions[(fc_key_nav_t)arg - FC_KEY_NAV_1](menu_action_args[(fc_key_nav_t)arg - FC_KEY_NAV_1]);
+      }
+      break;
+  }
+}
+
+void menu_action_constant(void *arg) {
+  fc_calculator_constant_t constant = (fc_calculator_constant_t)arg;
+  fc_calculator_perform_operation(&calculator_state, FC_CALCULATOR_OPERATION_CONSTANT, &constant);
+  fc_scalar_t x = fc_calculator_stack_get(&calculator_state, 0);
+  fc_input_set(&input_state, x);
+  disp_data.disp_state = FC_DISP_STATE_RESULT;
+  memset(disp_data.menu_labels, 0, sizeof(disp_data.menu_labels));
+  disp_data.flags.nav = false;
+}
+
+void key_const(fc_kb_action_t kb_action, void *arg) {
+  disp_data.disp_state = FC_DISP_STATE_NAV;
+  disp_data.flags.nav = true;
+  for (fc_calculator_constant_t constant = 0; constant < _FC_CALCULATOR_CONSTANT_COUNT; ++constant) {
+    snprintf(disp_data.menu_labels[constant], FC_MENU_LABEL_SIZE, "%s", fc_calculator_const_name(constant));
+    menu_actions[constant] = menu_action_constant;
+    menu_action_args[constant] = (void*)constant;
+  }
+  mod_clear();
+  update_display();
+}
 
 void setup() {
   fc_log_init();
   fc_kb_init();
 
-  disp_data.flags.mod_shift_r = false;
-  disp_data.flags.mod_shift_l = false;
-  disp_data.flags.mod_alt = false;
-  disp_data.flags.mod_lock = false;
-  disp_data.flags.hyp = false;
+  mod_clear();
   disp_data.flags.alpha = false;
   disp_data.flags.nav = false;
   

@@ -5,9 +5,9 @@
 #include <math.h>
 #include <complex.h>
 
-#define TMP_BUF_LEN (256)
+#define _TMP_BUF_LEN (256)
 
-static char tmp_buf[TMP_BUF_LEN] = {0};
+static char _tmp_buf[_TMP_BUF_LEN] = {0};
 
 static void _format_u_bin(fc_scalar_u_t val, char *buf, size_t buflen) {
   buf[buflen - 1] = '\0';
@@ -61,10 +61,10 @@ static void _format_f(fc_scalar_f_t val, fc_base_t base, char *buf, size_t bufle
 
 static void _format_c(fc_scalar_c_t val, fc_base_t base, char *buf, size_t buflen) {
   if (isnan(creal(val)) || isnan(cimag(val))) { snprintf(buf, buflen, "NaN"); return; }
-  char *real = tmp_buf;
-  char *imag = tmp_buf + TMP_BUF_LEN / 2;
-  _format_f(creal(val), base, real, TMP_BUF_LEN / 2);
-  _format_f(cimag(val), base, imag, TMP_BUF_LEN / 2);
+  char *real = _tmp_buf;
+  char *imag = _tmp_buf + _TMP_BUF_LEN / 2;
+  _format_f(creal(val), base, real, _TMP_BUF_LEN / 2);
+  _format_f(cimag(val), base, imag, _TMP_BUF_LEN / 2);
   bool real_zero = strlen(real) == 1 && real[0] == '0';
   bool imag_zero = strlen(imag) == 1 && imag[0] == '0';
   

@@ -22,13 +22,13 @@ typedef struct {
   bool hyp;
   bool alpha;
   bool nav;
-  bool mod_lock;
 } fc_flags_t;
 
 typedef enum {
   FC_DISP_STATE_NORMAL,
   FC_DISP_STATE_ENTRY,
-  FC_DISP_STATE_RESULT
+  FC_DISP_STATE_RESULT,
+  FC_DISP_STATE_NAV,
 } fc_disp_state_t;
 
 typedef struct {

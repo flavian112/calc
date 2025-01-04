@@ -93,15 +93,20 @@ static void _op_recall(fc_calculator_state_t *state, void *index) {
   _register_file_recall(state, *(unsigned char *)index);
 }
 
+static void _op_set_type(fc_calculator_state_t *state, void *type) {
+  state->scalar_type = *(fc_scalar_type_t *)type;
+}
+
 void fc_calculator_init(fc_calculator_state_t *state) {
   memset(state, 0, sizeof(fc_calculator_state_t));
+  state->scalar_type = FC_SCALAR_TYPE_F;
 }
 
 fc_scalar_t fc_calculator_stack_get(fc_calculator_state_t *state, unsigned index) {
   return _stack_get(state, index);
 }
 
-int fc_calculator_perform_operation(fc_calculator_state_t *state, fc_calculator_operation_t operation, fc_scalar_type_t type, ...) {
+int fc_calculator_perform_operation(fc_calculator_state_t *state, fc_calculator_operation_t operation, ...) {
   fc_scalar_t last_x = _stack_get(state, 0);
   
   const _op_info_t *op_info = &_op_info[operation];
@@ -123,12 +128,12 @@ int fc_calculator_perform_operation(fc_calculator_state_t *state, fc_calculator_
       r = op();
     }
     
-    _stack_push(state, fc_math_cvt(r, type));
+    _stack_push(state, fc_math_cvt(r, state->scalar_type));
   } else {
     void *args[op_info->argc];
     va_list arg_list;
     
-    va_start(arg_list, type);
+    va_start(arg_list, operation);
     for (int i = 0; i < op_info->argc; i++) {
       args[i] = va_arg(arg_list, void*);
     }
@@ -148,6 +153,18 @@ int fc_calculator_perform_operation(fc_calculator_state_t *state, fc_calculator_
   
   state->last_x = last_x;
   return 0;
+}
+
+fc_scalar_type_t fc_calculator_scalar_type_get(fc_calculator_state_t *state) {
+  return state->scalar_type;
+}
+
+const char *fc_calculator_const_name(fc_calculator_constant_t constant) {
+  return _const_info[constant].name;
+}
+
+const char *fc_calculator_operation_name(fc_calculator_operation_t operation) {
+  return _op_info[operation].name;
 }
 
 static const _op_info_t _op_info[_FC_CALCULATOR_OPERATION_COUNT] = {
@@ -591,6 +608,13 @@ static const _op_info_t _op_info[_FC_CALCULATOR_OPERATION_COUNT] = {
     .stackc = 0,
     .stackp = false,
     .op     = _op_constant,
+  },
+  [FC_CALCULATOR_OPERATION_TYPE] = {
+    .name   = "TYPE",
+    .argc   = 1,
+    .stackc = 0,
+    .stackp = false,
+    .op     = _op_set_type,
   }
 };
 

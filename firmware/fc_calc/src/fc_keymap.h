@@ -22,6 +22,11 @@ typedef enum {
   FC_KEY_NAV_RIGHT,
   FC_KEY_NAV_ENTER,
   FC_KEY_NAV_EXIT,
+  FC_KEY_NAV_1,
+  FC_KEY_NAV_2,
+  FC_KEY_NAV_3,
+  FC_KEY_NAV_4,
+  FC_KEY_NAV_5
 } fc_key_nav_t;
 
 void key_op(fc_kb_action_t kb_action, void *arg);
@@ -39,6 +44,7 @@ void key_func(fc_kb_action_t kb_action, void *arg);
 void key_mod(fc_kb_action_t kb_action, void *arg);
 void key_exit(fc_kb_action_t kb_action, void *arg);
 void key_nav(fc_kb_action_t kb_action, void *arg);
+void key_const(fc_kb_action_t kb_action, void *arg);
 
 typedef void (*fc_key_func_t)(fc_kb_action_t kb_action, void *arg);
 
@@ -54,35 +60,35 @@ static fc_key_action_t keymap[8][5][6] = { // default, shift_r, shift_l, alpha, 
       { key_func, (void*)6 },
       { key_func, (void*)11 },
       { NULL, NULL },
-      { NULL, NULL },
+      { key_nav, (void *)FC_KEY_NAV_1},
       { NULL, NULL }
     }, { // F2
       { key_func, (void*)2 }, 
       { key_func, (void*)7 }, 
       { key_func, (void*)12 }, 
       { NULL, NULL },
-      { NULL, NULL },
+      { key_nav, (void *)FC_KEY_NAV_2 },
       { NULL, NULL }
     }, { // F3
       { key_func, (void*)3 },
       { key_func, (void*)8 },
       { key_func, (void*)13 },
       { NULL, NULL },
-      { NULL, NULL },
+      { key_nav, (void *)FC_KEY_NAV_3 },
       { NULL, NULL }
     }, { // F4
       { key_func, (void*)4 },
       { key_func, (void*)9 },
       { key_func, (void*)14 },
       { NULL, NULL },
-      { NULL, NULL },
+      { key_nav, (void *)FC_KEY_NAV_4 },
       { NULL, NULL }
     }, { // F5
       { key_func, (void*)5 },
       { key_func, (void*)10 },
       { key_func, (void*)15 },
       { NULL, NULL },
-      { NULL, NULL },
+      { key_nav, (void *)FC_KEY_NAV_5 },
       { NULL, NULL } 
     }
   }, { // row 1
@@ -294,7 +300,7 @@ static fc_key_action_t keymap[8][5][6] = { // default, shift_r, shift_l, alpha, 
       { NULL, NULL }
     }, { // 3, CNST, MAT, G
       { key_digit, (void*)3 },
-      { NULL, NULL },
+      { key_const, NULL },
       { NULL, NULL },
       { key_alpha, (void *)'G' },
       { NULL, NULL },

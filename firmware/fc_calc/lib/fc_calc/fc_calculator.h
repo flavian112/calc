@@ -85,6 +85,8 @@ typedef enum {
   FC_CALCULATOR_OPERATION_RECALL,
   
   FC_CALCULATOR_OPERATION_CONSTANT,
+
+  FC_CALCULATOR_OPERATION_TYPE,
   
   _FC_CALCULATOR_OPERATION_COUNT
 } fc_calculator_operation_t;
@@ -101,12 +103,19 @@ typedef struct {
   unsigned stack_top;
   fc_scalar_t register_file[FC_CALCULATOR_REGISTER_FILE_SIZE];
   fc_scalar_t last_x;
+  fc_scalar_type_t scalar_type;
 } fc_calculator_state_t;
 
 void fc_calculator_init(fc_calculator_state_t *state);
 
 fc_scalar_t fc_calculator_stack_get(fc_calculator_state_t *state, unsigned index);
-int fc_calculator_perform_operation(fc_calculator_state_t *state, fc_calculator_operation_t operation, fc_scalar_type_t type, ...);
+int fc_calculator_perform_operation(fc_calculator_state_t *state, fc_calculator_operation_t operation, ...);
+
+fc_scalar_type_t fc_calculator_scalar_type_get(fc_calculator_state_t *state);
+
+const char *fc_calculator_const_name(fc_calculator_constant_t constant);
+const char *fc_calculator_operation_name(fc_calculator_operation_t operation);
+
 
 #ifdef __cplusplus
 }

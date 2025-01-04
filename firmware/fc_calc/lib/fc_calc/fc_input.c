@@ -67,17 +67,11 @@ static void _add_exp(char *buf) {
 static void _toggle_sign(char *buf) {
   if (_has_exp(buf)) {
     size_t idx = strchr(buf, 'e') - buf + 1;
-    if (_is_exp_neg(buf)) {
-      _char_remove(buf, idx);
-    } else {
-      _char_insert(buf, '-', idx);
-    }
+    if (_is_exp_neg(buf)) _char_remove(buf, idx);
+    else _char_insert(buf, '-', idx);
   } else {
-    if (_is_neg(buf)) {
-      _char_remove(buf, 0);
-    } else {
-      _char_insert(buf, '-', 0);
-    }
+    if (_is_neg(buf)) _char_remove(buf, 0);
+    else _char_insert(buf, '-', 0);
   }
 }
 
@@ -119,28 +113,18 @@ void fc_input_add_digit(fc_input_state_t *state, unsigned char digit) {
 }
 
 void fc_input_toggle_sign(fc_input_state_t *state) {
-  if (state->has_imag) {
-    _toggle_sign(state->imag);
-  } else {
-    _toggle_sign(state->real);
-  }
-  
+  if (state->has_imag) _toggle_sign(state->imag);
+  else _toggle_sign(state->real);
 }
 
 void fc_input_add_decimal(fc_input_state_t *state) {
-  if (state->has_imag) {
-    _add_decimal(state->imag);
-  } else {
-    _add_decimal(state->real);
-  }
+  if (state->has_imag) _add_decimal(state->imag);
+  else _add_decimal(state->real);
 }
 
 void fc_input_add_exponent(fc_input_state_t *state) {
-  if (state->has_imag) {
-    _add_exp(state->imag);
-  } else {
-    _add_exp(state->real);
-  }
+  if (state->has_imag) _add_exp(state->imag);
+  else _add_exp(state->real);
 }
 
 void fc_input_add_imaginary(fc_input_state_t *state) {
